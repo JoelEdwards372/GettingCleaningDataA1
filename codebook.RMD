@@ -1,0 +1,116 @@
+Project - Getting & Cleaning Data
+=================================
+
+1 - Merges the training and the test sets to create one data set.
+-----------------------------------------------------------------
+#### 1 - Download file to a directory and unzip contents
+```{r}
+#fileUrl<-"https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+#download.file(fileUrl, destfile="C:/Users/Joel/Desktop/Data/GetDataA1Dataset.zip")
+#unzip(zipfile="C:/Users/Joel/Desktop/Data/GetDataA1Dataset.zip",exdir="C:/Users/Joel/Desktop/Data/GetDataA1Dataset")
+```
+
+#### 2 - List data
+```{r}
+path_rf <- file.path("C:/Users/Joel/Desktop/Data/GetDataA1Dataset" , "UCI HAR Dataset")
+files<-list.files(path_rf, recursive=TRUE)
+files
+```
+
+### Plan - Load data, inspect, clean, then merge.
+#### With reference to the readme.txt file (details the information of the dataset) Intertial Signal data was not required.
+#### The files that were used in this project were:
+
+#### Data
+* test/X_test.txt
+* test/y_test.txt
+* train/X_train.txt
+* train/y_train.txt
+
+#### Headings, titles, informative variables
+* features.txt
+* subject_test.txt 
+* subject_train.txt 
+* activity_labels.txt
+
+#### 3A - Load, Bind and Label Data
+```{r}
+X_test<-read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/test/X_test.txt", header=FALSE)
+X_train<- read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/train/X_train.txt", header=FALSE)
+
+y_test<-read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/test/y_test.txt", header=FALSE)
+y_train<-read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/train/y_train.txt", header=FALSE)
+
+subject_test<-read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/test/subject_test.txt", header=FALSE)
+subject_train<-read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/train/subject_train.txt", header=FALSE)
+
+features<-readLines("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/features.txt")
+activity_labels<-read.table("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/UCI HAR Dataset/activity_labels.txt", header=FALSE)
+colnames(activity_labels)<-c("Activity","Description")
+
+
+#################################################
+##Provide Appropriate Binding of Data & Labelling
+#################################################
+combinedData<-rbind(X_test, X_train)
+colnames(combinedData)<-c(features)
+
+combinedSubject<-rbind(subject_test, subject_train)
+colnames(combinedSubject)<-"Subject"
+
+combinedActivity<-rbind(y_test, y_train)
+colnames(combinedActivity)<-"Activity"
+combinedActivity <- merge(combinedActivity,activity_labels,by="Activity")
+
+##Clean up
+rm(X_test); rm(X_train); rm(subject_test); rm(subject_train); rm(y_test); rm(y_train); rm(activity_labels);
+
+###########
+##Merge All
+###########
+CombinedFitData<-data.frame(combinedData, combinedSubject ,Activity=combinedActivity$Description)
+```
+2 - Extracts only the measurements on the mean and standard deviation for each measurement. 
+-------------------------------------------------------------------------------------------
+```{r}
+## First I extract the "Feature" columns that only represent mean and standard deviations of fitdata
+extractedFeatureFitData<-CombinedFitData[,grep("mean|std", names(CombinedFitData), value=TRUE)]
+
+## Then I amend the dataset to include "activity" and "subjects"
+CombinedFitData<-data.frame(extractedFeatureFitData, combinedSubject ,Activity=combinedActivity$Description)
+
+## Clean Up
+rm(combinedData); rm(combinedSubject); rm(extractedFeatureFitData); rm(features); rm(combinedActivity);
+colnames(CombinedFitData)[81]<-"Activity"
+```
+
+3 - Uses descriptive activity names to name the activities in the data set.
+---------------------------------------------------------------------------
+  #### Refer 3A - Load, Bind and Label Data .... combinedActivity <- merge(combinedActivity,activity_labels,by="Activity")
+  
+4 - Appropriately labels the data set with descriptive variable names. 
+------------------------------------------------------------------
+```{r}
+names(CombinedFitData)<-gsub("^t", "time", names(CombinedFitData))
+names(CombinedFitData)<-gsub("^f", "frequency", names(CombinedFitData))
+names(CombinedFitData)<-gsub("Acc", "Accelerometer", names(CombinedFitData))
+names(CombinedFitData)<-gsub("Gyro", "Gyroscope", names(CombinedFitData))
+names(CombinedFitData)<-gsub("Mag", "Magnitude", names(CombinedFitData))
+names(CombinedFitData)<-gsub("BodyBody", "Body", names(CombinedFitData))
+names(CombinedFitData)<-gsub("_", "", names(CombinedFitData))
+str(CombinedFitData)
+```
+5 - Tidy data set with the average of each variable for each activity and each subject.
+---------------------------------------------------------------------------------------
+```{r}
+library(plyr)
+agg.CombinedFitData<-aggregate(. ~Subject + Activity, CombinedFitData, mean)
+agg.CombinedFitData<-agg.CombinedFitData[order(agg.CombinedFitData$Subject,agg.CombinedFitData$Activity),]
+write.table(agg.CombinedFitData, file = "C:/Users/Joel/Desktop/Data/GetDataA1Dataset/tidydata.txt",row.name=FALSE)
+```
+
+5 - Codebook.
+```{r}
+#library(knitr); knit2html("C:/Users/Joel/Desktop/Data/GetDataA1Dataset/codebook.Rmd")
+```
+
